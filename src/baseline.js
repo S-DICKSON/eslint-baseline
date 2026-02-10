@@ -160,3 +160,55 @@ export const getFilteredMessages = (eslintResult, baseline) => {
 
     return fails;
 }
+
+/**
+ * Get eslint result messages that ARE present in baseline (with line numbers)
+ * @param eslintResult
+ * @param baseline
+ * @returns {
+ *      {
+ *          fullPath: string,
+ *          path: string,
+ *          ruleId: string,
+ *          line: int,
+ *      }[]
+ *  }
+ */
+export const getBaselinedMessages = (eslintResult, baseline) => {
+    const baselined = [];
+
+    for (const file of Object.values(eslintResult)) {
+        const filePath = path.relative(process.cwd(), file.filePath);
+
+        if (!baseline[filePath]) continue;
+
+        const fileLines = getFileLinesTrimmed(file.filePath);
+
+        for (const message of file.messages) {
+            if (!baseline[filePath][message.ruleId]) continue;
+
+            const context = (
+                (fileLines[message.line - 1] ?? '')
+                + (fileLines[message.line] ?? '')
+                + (fileLines[message.line + 1] ?? '')
+            );
+
+            const hash = objectHash.sha1({
+                filePath,
+                ruleId: message.ruleId,
+                context,
+            });
+
+            if (baseline[filePath][message.ruleId].some(x => x.hash === hash)) {
+                baselined.push({
+                    fullPath: file.filePath,
+                    path: filePath,
+                    ruleId: message.ruleId,
+                    line: message.line,
+                });
+            }
+        }
+    }
+
+    return baselined;
+}

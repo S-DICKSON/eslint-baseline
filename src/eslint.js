@@ -1,15 +1,13 @@
 import {execa} from "execa";
 
-async function execute(args = []) {
-
-    // default to provided args
-    args = process.argv;
+function getArgs() {
+    const args = [...process.argv];
     args.shift(); // remove node
     args.shift(); // remove command
+    return args.filter(a => a !== '--fix');
+}
 
-    // default output to json, pass through all other args
-    args = ['eslint', '-f', 'json', ...args];
-
+async function run(args) {
     let stdout = '';
     try {
         let result = await execa('npx', args, {env: {...process.env}});
@@ -25,9 +23,22 @@ async function execute(args = []) {
         stdout = error.stdout;
     }
 
+    return stdout;
+}
+
+async function execute() {
+    const args = ['eslint', '-f', 'json', ...getArgs()];
+    const stdout = await run(args);
+    if (!stdout) return null;
     return JSON.parse(stdout);
 }
 
+async function fix() {
+    const args = ['eslint', '--fix', ...getArgs()];
+    await run(args);
+}
+
 export default {
-    execute
+    execute,
+    fix
 }
